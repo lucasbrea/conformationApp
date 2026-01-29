@@ -1,0 +1,24 @@
+__pycache__/
+*.pyc
+.env
+
+# runtime data
+Data/
+data/
+outputs/
+jobs/
+Estimates/
+srv
+
+# DLC / models
+DLC/
+dlc-models*/
+training-datasets/
+evaluation-results/
+models/
+worker
+conda-spec.txt
+requirements.txt
+
+# notebooks
+*.ipynb_checkpoints
