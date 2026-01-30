@@ -2,7 +2,7 @@ from fastapi import FastAPI, UploadFile, File
 from pathlib import Path
 import uuid
 
-from pipeline.run import run_pipeline_one
+from app.pipeline.run import run_pipeline_one
 
 app = FastAPI()
 
