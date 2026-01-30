@@ -28,4 +28,7 @@ def create_labeled_video(
         [str(video_path)],
         shuffle=shuffle,
         draw_skeleton=draw_skeleton,
+        save_frames=True
     )
+    labeled_videos = list(video_path.parent.glob("*_labeled*.mp4"))
+    return labeled_videos[0] if labeled_videos else None
