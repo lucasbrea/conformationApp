@@ -1,18 +1,20 @@
-from preprocessing_00 import preprocess_image_to_video
-from inference_01 import run_dlc_on_video
-from features_02 import gen_features
-from labeling_03 import create_labeled_video
+from app.pipeline.preprocessing import preprocess_image_to_video
+from app.pipeline.dlc_inference import run_dlc_on_video
+from app.pipeline.features import gen_features
+from app.pipeline.label import create_labeled_video
 from pathlib import Path
 from datetime import datetime
 import uuid
 
-config_path=Path("W:\ComputerVision\Web App\DLC\pose_analysis-tr-2025-06-27\config_inference.yaml")
+MODELS_DIR = Path("/models")
+DATA_DIR = Path("/data")
 scorer = "DLC_Resnet50_pose_analysisJun27shuffle1_snapshot_680"
 #job_id = datetime.utcnow().strftime("%Y%m%d_%H%M%S") + "_" + uuid.uuid4().hex[:8]
-job_id= "05"
+job_id = uuid.uuid4().hex[:12]
 
-images_dir = Path("W:\ComputerVision\Web App\Data\Inputs")
-base_outdir = Path("W:\ComputerVision\Web App\Data\Outputs")
+config_path = MODELS_DIR / "dlc_project" / "config_inference.yaml"
+images_dir = DATA_DIR / "inputs"
+base_outdir = DATA_DIR / "jobs"
 outdir = base_outdir / job_id
 
 artifacts_dir = outdir / "artifacts"
