@@ -9,7 +9,7 @@ from app.pipeline.label import create_labeled_video
 MODELS_DIR = Path("/models")
 DATA_DIR = Path("/data")
 SCORER = "DLC_Resnet50_pose_analysisJun27shuffle1_snapshot_680"
-
+dlc_config= Path("/models/dlc_project/config_inference.yaml")
 
 def run_pipeline_one(
     input_image: Path,
