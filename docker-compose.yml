@@ -1,0 +1,28 @@
+services:
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - /srv/conformationApp_models:/models:ro
+      - /srv/conformationApp_data:/data
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+
+  worker:
+    build: .
+    command: rq worker conformation --url ${REDIS_URL}
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    volumes:
+      - /srv/conformationApp_models:/models:ro
+      - /srv/conformationApp_data:/data
+    depends_on:
+      - redis
