@@ -1,11 +1,11 @@
 from fastapi import FastAPI, UploadFile, File
 from pathlib import Path
 import uuid
-
+from fastapi.staticfiles import StaticFiles
 from app.pipeline.run import run_pipeline_one
 
 app = FastAPI()
-
+app.mount("/data", StaticFiles(directory="/data"), name="data")
 MODELS_DIR = Path("/models")
 DATA_DIR = Path("/data")
 
