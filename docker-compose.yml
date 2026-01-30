@@ -18,7 +18,7 @@ services:
 
   worker:
     build: .
-    command: rq worker conformation --url ${REDIS_URL}
+    command: rq worker conformation --url redis://redis:6379/0
     environment:
       - REDIS_URL=redis://redis:6379/0
     volumes:
