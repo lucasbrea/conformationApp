@@ -5,11 +5,12 @@ from app.pipeline.preprocessing import preprocess_image_to_video
 from app.pipeline.dlc_inference import run_dlc_on_video
 from app.pipeline.features import gen_features
 from app.pipeline.label import create_labeled_video
+from app.pipeline.scoring_04 import score_from_features
 
 MODELS_DIR = Path("/models")
 DATA_DIR = Path("/data")
 SCORER = "DLC_Resnet50_pose_analysisJun27shuffle1_snapshot_680"
-dlc_config= Path("/models/dlc_project/config_inference.yaml")
+
 
 def run_pipeline_one(
     input_image: Path,
@@ -43,6 +44,12 @@ def run_pipeline_one(
         out_path=artifacts_dir / "features.json",
     )
 
+    score = score_from_features(
+    features_json=features_path,
+    coeffs_json=MODELS_DIR / "model_coeffs.json",
+    xb_range_json=MODELS_DIR / "xb_range.json",
+    )["score_0_100"]  
+
     labeled_video = create_labeled_video(
         config_path=dlc_config,
         video_path=video_path,
@@ -53,4 +60,5 @@ def run_pipeline_one(
         "job_id": job_dir.name,
         "features": str(features_path),
         "labeled_video": str(labeled_video),
+        **score,
     }
