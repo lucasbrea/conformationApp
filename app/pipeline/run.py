@@ -60,5 +60,5 @@ def run_pipeline_one(
         "job_id": job_dir.name,
         "features": str(features_path),
         "labeled_video": str(labeled_video),
-        **score,
+        "score": float(score),
     }
