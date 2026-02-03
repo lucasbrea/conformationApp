@@ -38,10 +38,10 @@ def run_pipeline_one(
         shuffle=1,
     )
 
-    features_path = gen_features(
-        csv_path=csv_path,
-        scorer=SCORER,
-        out_path=artifacts_dir / "features.json",
+    features_path, lk_stats = gen_features(
+    csv_path=csv_path,
+    scorer=SCORER,
+    out_path=artifacts_dir / "features.json",
     )
 
     score = score_from_features(
@@ -60,5 +60,6 @@ def run_pipeline_one(
         "job_id": job_dir.name,
         "features": str(features_path),
         "labeled_video": str(labeled_video),
+        "Likelihood":lk_stats,
         "score": float(score),
     }
