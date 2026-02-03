@@ -330,9 +330,40 @@ def export_features_json(df, out_path: Path) -> Path:
 
     return out_path
 
+USED_PARTS = sorted({
+    "Withers","Croup_top","Buttock",
+    "Fetlock_front","Hoof_upper_front",
+    "Chest_top","Elbow_front",
+    "Elbow_back","Knee_back",
+    "Nose","Chin","Throat_latch_bottom","Throat_latch_top","Poll","Forehead","Forehead_eye",
+    "Neck_base_bottom","Chest_botom","Barrel_below_withers","Mid_belly","Stiffle_front",
+    "Dock","Back_bottom","Neck_base_top",
+    "Hind_fetlock_front","Hind_hoof_upper_front",
+})
 
-def gen_features(csv_path, scorer, out_path: Path) -> Path:
-    df_keypoints = parse_dlc_csv_one(csv_path, scorer)     # pandas df
-    df_features  = calculate_features(df_keypoints)        # ideally 1-row df or dict
-    return export_features_json(df_features, out_path)
+def likelihood_stats(df: pd.DataFrame, parts: list[str]) -> dict:
+    lcols = [f"{p}_l" for p in parts if f"{p}_l" in df.columns]
+    if not lcols:
+        return {
+            "lk_mean": float("nan"),
+            "lk_median": float("nan"),
+            "lk_min": float("nan"),
+        }
 
+    per_frame = df[lcols].mean(axis=1, skipna=True)
+
+    return {
+        "lk_mean": float(per_frame.mean(skipna=True)),
+        "lk_median": float(per_frame.median(skipna=True)),
+        "lk_min": float(per_frame.min(skipna=True)),
+    }
+
+def gen_features(csv_path, scorer, out_path: Path):
+    df_keypoints = parse_dlc_csv_one(csv_path, scorer)
+
+    feats_df = calculate_features(df_keypoints)
+    feats_path = export_features_json(feats_df, out_path)
+
+    lk_stats = likelihood_stats(df_keypoints, USED_PARTS)
+
+    return feats_path, lk_stats
