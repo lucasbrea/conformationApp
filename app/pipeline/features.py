@@ -364,6 +364,6 @@ def gen_features(csv_path, scorer, out_path: Path):
     feats_df = calculate_features(df_keypoints)
     feats_path = export_features_json(feats_df, out_path)
 
-    lk_stats = likelihood_stats(df_keypoints, USED_PARTS)
+    lk_stats = likelihood_stats(df_keypoints)
 
     return feats_path, lk_stats
