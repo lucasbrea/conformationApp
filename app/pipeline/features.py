@@ -341,21 +341,21 @@ USED_PARTS = sorted({
     "Hind_fetlock_front","Hind_hoof_upper_front",
 })
 
-def likelihood_stats(df: pd.DataFrame, parts: list[str]) -> dict:
-    lcols = [f"{p}_l" for p in parts if f"{p}_l" in df.columns]
-    if not lcols:
-        return {
-            "lk_mean": float("nan"),
-            "lk_median": float("nan"),
-            "lk_min": float("nan"),
-        }
+def likelihood_stats(df_keypoints):
+    lk_cols = [f"{p}_l" for p in USED_PARTS if f"{p}_l" in df_keypoints.columns]
+    if not lk_cols:
+        raise ValueError("No likelihood columns found for USED_PARTS")
 
-    per_frame = df[lcols].mean(axis=1, skipna=True)
+    # df_keypoints is 1 row (one frame). Flatten likelihoods across used points.
+    lk = df_keypoints[lk_cols].to_numpy(dtype=float).ravel()
+    lk = lk[~np.isnan(lk)]
 
     return {
-        "lk_mean": float(per_frame.mean(skipna=True)),
-        "lk_median": float(per_frame.median(skipna=True)),
-        "lk_min": float(per_frame.min(skipna=True)),
+        "lk_mean": float(lk.mean()),
+        "lk_median": float(np.median(lk)),
+        "lk_min": float(lk.min()),
+        "lk_max": float(lk.max()),
+        "lk_n": int(lk.size),
     }
 
 def gen_features(csv_path, scorer, out_path: Path):
