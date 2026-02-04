@@ -37,3 +37,30 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id):
     except Exception as e:
         # 5) mark run failed
         raise
+
+    video_path = Path(result["labeled_video"])
+    storage_path = f"results/{run_id}/{video_path.name}"
+    supabase.storage.from_("Conformation-Artifacts").upload(
+    storage_path,
+    video_path.read_bytes(),
+    {"content-type": "video/mp4"}
+    )
+
+    supabase.table("artifacts").insert({
+    "run_id": run_id,
+    "kind": "labeled_video",
+    "bucket": "conformation-artifacts",
+    "path": storage_path,
+    "size_bytes": video_path.stat().st_size
+    }).execute()
+    
+    supabase.table("predictions").insert({
+    "run_id": run_id,
+    "metric": "cr_score",
+    "value": result["score"]
+    }).execute()
+
+    supabase.table("runs").update({
+    "status": "succeeded",
+    "finished_at": "now()"
+    }).eq("id", run_id).execute()   
