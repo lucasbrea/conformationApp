@@ -17,7 +17,8 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id):
         "horse_id": horse_id,
         "status": "running",
         "model_name": "dlc_conformation",
-        "model_version": "v1"
+        "model_version": "v1",
+        "started_at": "now()"
     }).execute()
 
     run_id = run.data[0]["id"]
