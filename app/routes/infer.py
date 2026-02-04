@@ -10,21 +10,6 @@ router = APIRouter()
 
 MODELS_DIR = Path("/models")
 DATA_DIR = Path("/data")
-horse = supabase.table("horses").insert({
-    "sale": "TEMP",
-    "hip": int(uuid.uuid4().int % 1_000_000)
-}).execute()
-horse_id = horse.data[0]["id"]
-
-run = supabase.table("runs").insert({
-    "horse_id": horse_id,
-    "status": "queued",
-    "model_name": "dlc_conformation",
-    "model_version": "v1"
-}).execute()
-
-run_id = run.data[0]["id"]
-
 
 @router.post("/infer")
 async def infer(file: UploadFile = File(...)):
@@ -35,11 +20,23 @@ async def infer(file: UploadFile = File(...)):
     input_path = job_dir / "input.jpg"
     input_path.write_bytes(await file.read())
 
-    # create a horse (placeholder for now)
-    horse = supabase.table("horses").insert({"sale": "UNKNOWN", "hip": -1}).execute()
+    # create a horse (placeholder, must be unique if you have constraints)
+    horse = supabase.table("horses").insert({
+        "sale": "TEMP",
+        "hip": int(uuid.uuid4().int % 1_000_000)
+    }).execute()
     horse_id = horse.data[0]["id"]
 
-    job = q.enqueue(
+    # create a run (queued)
+    run = supabase.table("runs").insert({
+        "horse_id": horse_id,
+        "status": "queued",
+        "model_name": "dlc_conformation",
+        "model_version": "v1"
+    }).execute()
+    run_id = run.data[0]["id"]
+
+    q.enqueue(
         run_job,
         str(input_path),
         str(job_dir),
