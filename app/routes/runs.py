@@ -2,12 +2,10 @@ from fastapi import APIRouter
 from app.supabase_client import supabase
 
 router = APIRouter()
-
 SIGNED_URL_TTL = 3600  # seconds
 
 @router.get("/runs")
 def list_runs(limit: int = 50):
-    # 1) fetch latest runs
     runs_res = (
         supabase.table("runs")
         .select("id,status,created_at,horse_id,model_name,model_version")
@@ -21,7 +19,6 @@ def list_runs(limit: int = 50):
 
     run_ids = [r["id"] for r in runs]
 
-    # 2) fetch scores (predictions)
     preds_res = (
         supabase.table("predictions")
         .select("run_id,metric,value")
@@ -30,7 +27,6 @@ def list_runs(limit: int = 50):
     )
     preds = preds_res.data or []
 
-    # pick one score per run (cr_score preferred)
     score_by_run = {}
     for p in preds:
         rid = p["run_id"]
@@ -40,7 +36,6 @@ def list_runs(limit: int = 50):
         elif m == "score" and rid not in score_by_run:
             score_by_run[rid] = p["value"]
 
-    # 3) fetch artifacts (for preview)
     arts_res = (
         supabase.table("artifacts")
         .select("run_id,kind,bucket,path,created_at")
@@ -50,16 +45,32 @@ def list_runs(limit: int = 50):
     )
     arts = arts_res.data or []
 
-    # choose first artifact per run as preview
+    status_by_run = {r["id"]: r["status"] for r in runs}
+
     preview_by_run = {}
     for a in arts:
         rid = a["run_id"]
+
+        # only attach previews for succeeded runs
+        if status_by_run.get(rid) != "succeeded":
+            continue
+
+        # already have a preview
         if rid in preview_by_run:
             continue
-        signed = supabase.storage.from_(a["bucket"]).create_signed_url(a["path"], SIGNED_URL_TTL)
-        preview_by_run[rid] = signed.get("signedURL") if signed else None
 
-    # 4) shape response
+        bucket = a.get("bucket")
+        path = a.get("path")
+        if not bucket or not path:
+            preview_by_run[rid] = None
+            continue
+
+        try:
+            signed = supabase.storage.from_(bucket).create_signed_url(path, SIGNED_URL_TTL)
+            preview_by_run[rid] = signed.get("signedURL") if signed else None
+        except Exception:
+            preview_by_run[rid] = None
+
     out = []
     for r in runs:
         rid = r["id"]
@@ -71,7 +82,7 @@ def list_runs(limit: int = 50):
             "model_name": r["model_name"],
             "model_version": r["model_version"],
             "score": score_by_run.get(rid),
-            "preview_url": preview_by_run.get(rid),
+            "preview_url": preview_by_run.get(rid),  # may be None
         })
 
     return {"runs": out}
