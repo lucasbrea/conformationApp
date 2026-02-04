@@ -15,6 +15,9 @@ supabase = create_client(
     os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 )  
 
+horse = supabase.table("horses").insert({}).execute()
+horse_id = horse.data[0]["id"]
+
 app = FastAPI()
 app.mount("/data", StaticFiles(directory="/data"), name="data")
 MODELS_DIR = Path("/models")
@@ -40,6 +43,7 @@ async def infer(file: UploadFile = File(...)):
         str(MODELS_DIR / "dlc_project" / "config_inference.yaml"),
         str(MODELS_DIR / "model_coeffs.json"),
         job_id=job_id,
+        horse_id=horse_id
     )
 
     return {"job_id": job.id, "status": "queued"}
