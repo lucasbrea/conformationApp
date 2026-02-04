@@ -8,21 +8,23 @@ supabase = create_client(
     os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 )
 
-BUCKET = "Conformation_Artifacts"  # MUST match exactly in Supabase
+# MUST match Supabase Storage bucket name EXACTLY (case-sensitive)
+BUCKET = "Conformation_Artifacts"  # change if your bucket is named differently
 
-def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id):
+def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
+    """
+    RQ worker entrypoint.
+    Expects run_id to already exist (created in API as status='queued').
+    """
 
-    run = supabase.table("runs").insert({
-        "horse_id": horse_id,
+    # Mark run as running (and set started_at)
+    supabase.table("runs").update({
         "status": "running",
-        "model_name": "dlc_conformation",
-        "model_version": "v1",
         "started_at": "now()"
-    }).execute()
-
-    run_id = run.data[0]["id"]
+    }).eq("id", run_id).execute()
 
     try:
+        # Run pipeline
         result = run_pipeline_one(
             input_image=Path(input_image),
             job_dir=Path(job_dir),
@@ -30,7 +32,7 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id):
             coeffs_json=Path(coeffs_json),
         )
 
-        # upload labeled video
+        # Upload labeled video artifact
         video_path = Path(result["labeled_video"])
         storage_path = f"results/{run_id}/{video_path.name}"
 
@@ -40,6 +42,7 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id):
             {"content-type": "video/mp4"}
         )
 
+        # Record artifact metadata
         supabase.table("artifacts").insert({
             "run_id": run_id,
             "kind": "labeled_video",
@@ -48,13 +51,15 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id):
             "size_bytes": video_path.stat().st_size
         }).execute()
 
+        # Record prediction
         supabase.table("predictions").insert({
             "run_id": run_id,
             "metric": "cr_score",
             "value": float(result["score"]),
-            "breakdown": result.get("warnings")  # or {} / None; replace later with real json
+            "breakdown": result.get("warnings")  # optional; replace later with real json
         }).execute()
 
+        # Mark run succeeded
         supabase.table("runs").update({
             "status": "succeeded",
             "finished_at": "now()"
@@ -63,6 +68,7 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id):
         return {"run_id": run_id, "score": result["score"]}
 
     except Exception as e:
+        # Mark run failed
         supabase.table("runs").update({
             "status": "failed",
             "error_message": str(e),

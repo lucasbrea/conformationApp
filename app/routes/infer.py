@@ -16,6 +16,16 @@ horse = supabase.table("horses").insert({
 }).execute()
 horse_id = horse.data[0]["id"]
 
+run = supabase.table("runs").insert({
+    "horse_id": horse_id,
+    "status": "queued",
+    "model_name": "dlc_conformation",
+    "model_version": "v1"
+}).execute()
+
+run_id = run.data[0]["id"]
+
+
 @router.post("/infer")
 async def infer(file: UploadFile = File(...)):
     job_id = uuid.uuid4().hex[:12]
@@ -35,7 +45,8 @@ async def infer(file: UploadFile = File(...)):
         str(job_dir),
         str(MODELS_DIR / "dlc_project" / "config_inference.yaml"),
         str(MODELS_DIR / "model_coeffs.json"),
-        horse_id=horse_id
+        horse_id=horse_id,
+        run_id=run_id
     )
 
-    return {"job_id": job.id, "status": "queued", "horse_id": horse_id}
+    return {"run_id": run_id, "status": "queued"}
