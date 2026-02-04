@@ -5,12 +5,12 @@ from app.routes.runs import router as runs_router
 from fastapi.staticfiles import StaticFiles
 
 app = FastAPI()
-
-app.mount("/", StaticFiles(directory="app/static", html=True), name="static")
 app.mount("/data", StaticFiles(directory="/data"), name="data")
 
 app.include_router(infer_router)
 app.include_router(runs_router)
+
+app.mount("/ui", StaticFiles(directory="app/static", html=True), name="static")
 
 
 
