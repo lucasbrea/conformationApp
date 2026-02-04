@@ -15,7 +15,10 @@ supabase = create_client(
     os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 )  
 
-horse = supabase.table("horses").insert({}).execute()
+horse = supabase.table("horses").insert({
+    "sale": "UNKNOWN",
+    "hip": -1
+}).execute()
 horse_id = horse.data[0]["id"]
 
 app = FastAPI()
