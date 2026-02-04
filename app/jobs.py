@@ -3,6 +3,7 @@
 from supabase import create_client
 from app.pipeline.run import run_pipeline_one
 import os
+from pathlib import Path
 
 supabase = create_client(
     os.environ["SUPABASE_URL"],
@@ -24,10 +25,10 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id):
     try:
         # 2) run your EXISTING pipeline
         result = run_pipeline_one(
-            input_image=input_image,
-            job_dir=job_dir,
-            dlc_config=dlc_config,
-            coeffs_json=coeffs_json,
+            input_image=Path(input_image),
+            job_dir=Path(job_dir),
+            dlc_config=Path(dlc_config),
+            coeffs_json=Path(coeffs_json),
         )
 
         # 3) upload artifacts + insert predictions
