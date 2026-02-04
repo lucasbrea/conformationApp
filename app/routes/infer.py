@@ -10,8 +10,10 @@ router = APIRouter()
 
 MODELS_DIR = Path("/models")
 DATA_DIR = Path("/data")
-
-horse = supabase.table("horses").insert({}).execute()
+horse = supabase.table("horses").insert({
+    "sale": "TEMP",
+    "hip": int(uuid.uuid4().int % 1_000_000)
+}).execute()
 horse_id = horse.data[0]["id"]
 
 @router.post("/infer")
