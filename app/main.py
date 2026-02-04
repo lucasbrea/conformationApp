@@ -17,7 +17,7 @@ app.mount("/ui", StaticFiles(directory="app/static", html=True), name="static")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://*.lovableproject.com",  # Lovable frontend
+        "https://equine-pose-insight.lovable.app",  # Lovable frontend
         "http://localhost:3000",            # optional local dev
     ],
     allow_credentials=True,
