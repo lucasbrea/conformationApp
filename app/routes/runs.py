@@ -182,3 +182,37 @@ def get_run(run_id: str):
         "predictions": preds_res.data or [],
         "artifacts": signed_artifacts,
     }
+
+@router.delete("/runs/{run_id}")
+def delete_run(run_id: str):
+    # 1) fetch artifacts first (so we can delete files)
+    arts_res = (
+        supabase.table("artifacts")
+        .select("bucket,path")
+        .eq("run_id", run_id)
+        .execute()
+    )
+    arts = arts_res.data or []
+
+    # 2) delete files from Storage (best effort)
+    # group by bucket because remove() is per-bucket
+    buckets = {}
+    for a in arts:
+        b = a.get("bucket")
+        p = a.get("path")
+        if b and p:
+            buckets.setdefault(b, []).append(p)
+
+    for bucket, paths in buckets.items():
+        try:
+            supabase.storage.from_(bucket).remove(paths)
+        except Exception:
+            # don't block deletion if a file is already gone
+            pass
+
+    # 3) delete the run row (predictions/artifacts cascade if you set Step 1)
+    del_res = supabase.table("runs").delete().eq("id", run_id).execute()
+    if not del_res.data:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    return {"ok": True, "deleted_run_id": run_id}
