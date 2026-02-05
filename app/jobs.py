@@ -43,9 +43,7 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
         likelihood = None
 
         # if your pipeline writes these files (it looked like it did before)
-        features_path = job_dir_p / "features.json"
-        if features_path.exists():
-            features = json.loads(features_path.read_text())
+        features = json.loads((Path(job_dir) / "features.json").read_text())
 
         # if likelihood is in result, just grab it
         likelihood = result.get("Likelihood") or result.get("likelihood")
