@@ -33,6 +33,31 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
             coeffs_json=Path(coeffs_json),
         )
 
+        lk = result.get("Likelihood") or {}
+        lk_mean = lk.get("lk_mean")
+
+        # If lk_mean is missing, treat as low-quality (or choose to allow)
+        if lk_mean is None:
+            supabase.table("runs").update({
+                "status": "rejected",
+                "quality_score": None,
+                "quality_reason": "missing_likelihood",
+                "finished_at": "now()"
+            }).eq("id", run_id).execute()
+
+            return {"run_id": run_id, "status": "rejected", "reason": "missing_likelihood"}
+
+        if float(lk_mean) < 0.50:
+            supabase.table("runs").update({
+                "status": "rejected",
+                "quality_score": float(lk_mean),
+                "quality_reason": "low_likelihood",
+                "finished_at": "now()"
+            }).eq("id", run_id).execute()
+
+            # IMPORTANT: do NOT upload artifacts, do NOT insert predictions
+            return {"run_id": run_id, "status": "rejected", "lk_mean": float(lk_mean)}
+
         # Upload labeled video artifact
         video_path = Path(result["labeled_video"])
         storage_path = f"results/{run_id}/{video_path.name}"
