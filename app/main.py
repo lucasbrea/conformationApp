@@ -10,6 +10,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://m37conformation.lovable.app",
+        "https://move37conformation.com/",
         "http://localhost:3000",
     ],
     allow_credentials=True,
