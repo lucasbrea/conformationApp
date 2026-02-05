@@ -2,6 +2,7 @@ from supabase import create_client
 from app.pipeline.run import run_pipeline_one
 import os
 from pathlib import Path
+import json
 
 supabase = create_client(
     os.environ["SUPABASE_URL"],
@@ -36,6 +37,19 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
         video_path = Path(result["labeled_video"])
         storage_path = f"results/{run_id}/{video_path.name}"
 
+        job_dir_p = Path(job_dir)
+
+        features = None
+        likelihood = None
+
+        # if your pipeline writes these files (it looked like it did before)
+        features_path = job_dir_p / "features.json"
+        if features_path.exists():
+            features = json.loads(features_path.read_text())
+
+        # if likelihood is in result, just grab it
+        likelihood = result.get("Likelihood") or result.get("likelihood")
+
         supabase.storage.from_(BUCKET).upload(
             storage_path,
             video_path.read_bytes(),
@@ -56,7 +70,11 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
             "run_id": run_id,
             "metric": "cr_score",
             "value": float(result["score"]),
-            "breakdown": result.get("warnings")  # optional; replace later with real json
+            "breakdown": {
+                "warnings": result.get("warnings"),
+                "likelihood": likelihood,
+                "features": features,
+            }
         }).execute()
 
         # Mark run succeeded
