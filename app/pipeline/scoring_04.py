@@ -61,7 +61,7 @@ def score_from_features(
     # score=50 + (10*z)
     # score = max(0,min(100,score))
     #Percentiles
-    xb_ref = np.load("/models/xb_ref_v1.npy")
+    xb_ref = np.load("/models/xb_ref_v2.npy")
 
     pct = np.searchsorted(xb_ref, xb, side="right") / len(xb_ref)
     score = pct * 100
