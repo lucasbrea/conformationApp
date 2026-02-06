@@ -9,8 +9,62 @@ supabase = create_client(
     os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 )
 
-# MUST match Supabase Storage bucket name EXACTLY (case-sensitive)
-BUCKET = "Conformation_Artifacts"  # change if your bucket is named differently
+BUCKET = "Conformation_Artifacts"
+BASELINE_PATH = Path("/models/xb_baseline.json")  # must exist in container
+
+def _load_features(job_dir: str) -> dict | None:
+    job_dir_p = Path(job_dir)
+    matches = list(job_dir_p.rglob("features.json"))
+    if not matches:
+        return None
+    try:
+        return json.loads(matches[0].read_text())
+    except Exception:
+        return None
+
+def _build_feature_contribs(features: dict | None, coeffs_json_path: str) -> dict | None:
+    """
+    Returns dict:
+      feature -> {x, beta, contrib, mean_contrib, delta}
+    """
+    if not features:
+        return None
+
+    # model coeffs
+    try:
+        model = json.loads(Path(coeffs_json_path).read_text())
+        coef_dict = model.get("coeffs", {})  # feature -> beta
+    except Exception:
+        return None
+
+    # baseline mean contributions
+    try:
+        baseline = json.loads(BASELINE_PATH.read_text())
+        mean_contrib = baseline.get("mean_contrib", baseline.get("mean", {}))  # support either key
+    except Exception:
+        mean_contrib = {}
+
+    out = {}
+    for f, x in features.items():
+        if f not in coef_dict:
+            continue
+        try:
+            x_f = float(x)
+            b_f = float(coef_dict[f])
+        except Exception:
+            continue
+
+        contrib = x_f * b_f
+        m = float(mean_contrib.get(f, 0.0))
+        out[f] = {
+            "x": x_f,
+            "beta": b_f,
+            "contrib": contrib,
+            "mean_contrib": m,
+            "delta": contrib - m
+        }
+
+    return out
 
 def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
     """
@@ -18,7 +72,7 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
     Expects run_id to already exist (created in API as status='queued').
     """
 
-    # Mark run as running (and set started_at)
+    # Mark run as running
     supabase.table("runs").update({
         "status": "running",
         "started_at": "now()"
@@ -33,10 +87,10 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
             coeffs_json=Path(coeffs_json),
         )
 
-        lk = result.get("Likelihood") or {}
-        lk_mean = lk.get("lk_mean")
+        # Likelihood gate
+        likelihood = result.get("Likelihood") or result.get("likelihood") or {}
+        lk_mean = likelihood.get("lk_mean")
 
-        # If lk_mean is missing, treat as low-quality (or choose to allow)
         if lk_mean is None:
             supabase.table("runs").update({
                 "status": "rejected",
@@ -44,7 +98,6 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
                 "quality_reason": "missing_likelihood",
                 "finished_at": "now()"
             }).eq("id", run_id).execute()
-
             return {"run_id": run_id, "status": "rejected", "reason": "missing_likelihood"}
 
         if float(lk_mean) < 0.50:
@@ -54,26 +107,17 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
                 "quality_reason": "low_likelihood",
                 "finished_at": "now()"
             }).eq("id", run_id).execute()
-
-            # IMPORTANT: do NOT upload artifacts, do NOT insert predictions
             return {"run_id": run_id, "status": "rejected", "lk_mean": float(lk_mean)}
 
-        # Upload labeled video artifact
+        # Load features from disk (pipeline writes it under artifacts_dir)
+        features = _load_features(job_dir)
+
+        # Build simple per-feature contribution deltas
+        feature_contribs = _build_feature_contribs(features, coeffs_json)
+
+        # Upload labeled video
         video_path = Path(result["labeled_video"])
         storage_path = f"results/{run_id}/{video_path.name}"
-
-        job_dir_p = Path(job_dir)
-
-        features = None
-        likelihood = None
-
-        # if your pipeline writes these files (it looked like it did before)
-        job_dir_p = Path(job_dir)
-        matches = list(job_dir_p.rglob("features.json"))
-        features = json.loads(matches[0].read_text()) if matches else None  
-
-        # if likelihood is in result, just grab it
-        likelihood = result.get("Likelihood") or result.get("likelihood")
 
         supabase.storage.from_(BUCKET).upload(
             storage_path,
@@ -90,7 +134,7 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
             "size_bytes": video_path.stat().st_size
         }).execute()
 
-        # Record prediction
+        # Record prediction + extras
         supabase.table("predictions").insert({
             "run_id": run_id,
             "metric": "cr_score",
@@ -98,7 +142,8 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
             "breakdown": {
                 "warnings": result.get("warnings"),
                 "likelihood": likelihood,
-                "features": features,
+                "features": features,  # optional; can remove if too big
+                "feature_contribs": feature_contribs
             }
         }).execute()
 
@@ -108,10 +153,9 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
             "finished_at": "now()"
         }).eq("id", run_id).execute()
 
-        return {"run_id": run_id, "score": result["score"]}
+        return {"run_id": run_id, "score": float(result["score"])}
 
     except Exception as e:
-        # Mark run failed
         supabase.table("runs").update({
             "status": "failed",
             "error_message": str(e),
