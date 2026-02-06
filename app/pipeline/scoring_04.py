@@ -2,6 +2,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 import math
+import numpy as np
 
 def _load_json(path: Path) -> dict:
     path = Path(path)
@@ -56,16 +57,22 @@ def score_from_features(
     # score = max(0.0, min(100.0, score))
 
     #Z-score
-    z=(xb-xb_mu)/xb_sd
-    score=50 + (10*z)
-    score = max(0,min(100,score))
+    # z=(xb-xb_mu)/xb_sd
+    # score=50 + (10*z)
+    # score = max(0,min(100,score))
+    #Percentiles
+    xb_ref = np.load("/models/xb_ref_v1_trim.npy")
 
-    prob_proxy = _sigmoid(xb)
+    pct = np.searchsorted(xb_ref, xb, side="right") / len(xb_ref)
+    score = pct * 100
+    score = min(99.9, max(0.1, score))
+
+
 
     return {
         "xb": xb,
         "score_0_100": score,
-        "prob_proxy_logit": prob_proxy,
+        "prob_proxy_logit": -1 ,
         "xb_range": {"xb_lo": xb_lo, "xb_hi": xb_hi, "method": rng.get("method")},
         "model": model.get("name"),
     }
