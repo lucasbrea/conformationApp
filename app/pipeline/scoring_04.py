@@ -46,16 +46,20 @@ def score_from_features(
 
     xb_lo = float(rng["xb_lo"])
     xb_hi = float(rng["xb_hi"])
+    xb_mu = float(rng["xb_mu"])
+    xb_sd = float(rng["xb_sd"])
     if xb_hi <= xb_lo:
         raise ValueError(f"Invalid xb range: xb_hi ({xb_hi}) <= xb_lo ({xb_lo})")
 
     # linear index 0-100 (clipped)
-    score = (xb - xb_lo) / (xb_hi - xb_lo) * 100.0
-    score = max(0.0, min(100.0, score))
+    # score = (xb - xb_lo) / (xb_hi - xb_lo) * 100.0
+    # score = max(0.0, min(100.0, score))
 
-    # optional: if you also want the model probability
-    # NOTE: for true probit you’d use normal CDF, but you asked for linear index.
-    # We'll still return a logistic proxy unless you want scipy.stats.norm.cdf.
+    #Z-score
+    z=(xb-xb_mu)/xb_sd
+    score=50 + (10*z)
+    score = max(0,min(100,score))
+
     prob_proxy = _sigmoid(xb)
 
     return {
