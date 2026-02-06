@@ -3,6 +3,7 @@ from pathlib import Path
 import json
 import math
 import numpy as np
+from scipy.stats import norm
 
 def _load_json(path: Path) -> dict:
     path = Path(path)
@@ -58,14 +59,16 @@ def score_from_features(
 
     #Z-score
     # z=(xb-xb_mu)/xb_sd
-    # score=50 + (10*z)
+    # score=z*100
     # score = max(0,min(100,score))
     #Percentiles
-    xb_ref = np.load("/models/xb_ref_v2.npy")
+    # xb_ref = np.load("/models/xb_ref_v2.npy")
 
-    pct = np.searchsorted(xb_ref, xb, side="right") / len(xb_ref)
-    score = pct * 100
-    score = min(99.9, max(0.1, score))
+    # pct = np.searchsorted(xb_ref, xb, side="right") / len(xb_ref)
+    # score = pct * 100
+    # score = min(99.9, max(0.1, score))
+
+    score = norm.cdf(xb, xb_mu, xb_sd) * 100
 
 
 
