@@ -10,7 +10,7 @@ from itertools import chain
 import os, shutil
 import json
 
-with open("/models/feature_bounds.json", "r") as f:
+with open("/models/contribution_summary.json", "r") as f:
     bounds_list = json.load(f)
 
 
