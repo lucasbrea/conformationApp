@@ -134,6 +134,7 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
             "size_bytes": video_path.stat().st_size
         }).execute()
 
+        clipped_terms = result.get("clipped", [])
         # Record prediction + extras
         supabase.table("predictions").insert({
             "run_id": run_id,
@@ -143,7 +144,10 @@ def run_job(input_image, job_dir, dlc_config, coeffs_json, horse_id, run_id):
                 "warnings": result.get("warnings"),
                 "likelihood": likelihood,
                 "features": features,  # optional; can remove if too big
-                "feature_contribs": feature_contribs
+                "feature_contribs": feature_contribs,
+                "clipped_terms": clipped_terms,
+                "qc_clipped": bool(clipped_terms),
+                "n_clipped_terms": len(clipped_terms),
             }
         }).execute()
 
