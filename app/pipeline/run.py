@@ -44,12 +44,12 @@ def run_pipeline_one(
     out_path=artifacts_dir / "features.json",
     )
 
-    score = score_from_features(
+    score,clipped = score_from_features(
     features_json=features_path,
     coeffs_json=MODELS_DIR / "model_coeffs.json",
     xb_range_json=MODELS_DIR / "xb_range.json",
     contrib_bounds_json=MODELS_DIR/"contribution_summary.json",
-    )["score_0_100"]  ,
+    )["score_0_100","clipped_terms"] 
 
     labeled_video = create_labeled_video(
         config_path=dlc_config,
@@ -63,5 +63,6 @@ def run_pipeline_one(
         "labeled_video": str(labeled_video),
         "Likelihood":lk_stats,
         "score": float(score),
+        "clipped":clipped
 
     }
