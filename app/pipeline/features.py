@@ -284,7 +284,7 @@ def calculate_features(df):
             #Minimal Model Feats
             "croup_vs_horiz":                angle("Withers","Croup_top","Buttock"),
             "fore_pastern_len_top_norm":     dist_ratio("Fetlock_front","Hoof_upper_front","Withers","Croup_top"),
-            "chest_depth_norm_elbow":        dist_ratio("Chest_top","Elbow_front","Chest_top","Buttock"),
+            #"chest_depth_norm_elbow":        dist_ratio("Chest_top","Elbow_front","Chest_top","Buttock"),
             "forearm_len_top_norm":          dist_ratio("Elbow_back","Knee_back","Withers","Croup_top"),
             "head_area_ratio":             (
                                                 polygon_area("Nose","Chin", "Throat_latch_bottom","Throat_latch_top","Poll", "Forehead", "Forehead_eye") /
@@ -297,7 +297,7 @@ def calculate_features(df):
     )
 
     feats["fore_pastern_len_top_norm_sq"] = feats["fore_pastern_len_top_norm"] ** 2
-    feats["chest_depth_norm_elbow_sq"]    = feats["chest_depth_norm_elbow"] ** 2
+    #feats["chest_depth_norm_elbow_sq"]    = feats["chest_depth_norm_elbow"] ** 2
     feats["forearm_len_top_norm_sq"]      = feats["forearm_len_top_norm"] ** 2
     feats["head_area_ratio_sq"]           = feats["head_area_ratio"] ** 2
     feats["hind_pastern_ang_sq"]          = feats["hind_pastern_ang"] ** 2
@@ -346,7 +346,7 @@ def likelihood_stats(df_keypoints):
     if not lk_cols:
         raise ValueError("No likelihood columns found for USED_PARTS")
 
-    # df_keypoints is 1 row (one frame). Flatten likelihoods across used points.
+    # df_keypoints. Flatten likelihoods across used points.
     lk = df_keypoints[lk_cols].to_numpy(dtype=float).ravel()
     lk = lk[~np.isnan(lk)]
 
