@@ -10,6 +10,16 @@ from itertools import chain
 import os, shutil
 import json
 
+with open("/models/feature_bounds.json", "r") as f:
+    bounds_list = json.load(f)
+
+
+bounds = (
+    pd.DataFrame(bounds_list)
+      .set_index("feature")[["p01", "p99"]]
+)
+
+
 def parse_dlc_csv_one(fp_csv: Path, scorer: str | None = None) -> pd.DataFrame:
     """
     Parse ONE DLC CSV (3 header rows) into a tidy pandas df:
@@ -295,6 +305,15 @@ def calculate_features(df):
         },
         index=df.index
     )
+
+    ##Clip outlier features(P01,P99 for now)
+    feat_cols = [c for c in feats.columns if c != "id"]
+
+    for c in feat_cols:
+        if c in bounds.index:
+            lo = float(bounds.loc[c, "p01"])
+            hi = float(bounds.loc[c, "p99"])
+            feats[c] = feats[c].clip(lower=lo, upper=hi)
 
     feats["fore_pastern_len_top_norm_sq"] = feats["fore_pastern_len_top_norm"] ** 2
     #feats["chest_depth_norm_elbow_sq"]    = feats["chest_depth_norm_elbow"] ** 2
