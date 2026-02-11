@@ -306,14 +306,6 @@ def calculate_features(df):
         index=df.index
     )
 
-    ##Clip outlier features(P01,P99 for now)
-    feat_cols = [c for c in feats.columns if c != "id"]
-
-    for c in feat_cols:
-        if c in bounds.index:
-            lo = float(bounds.loc[c, "p01"])
-            hi = float(bounds.loc[c, "p99"])
-            feats[c] = feats[c].clip(lower=lo, upper=hi)
 
     feats["fore_pastern_len_top_norm_sq"] = feats["fore_pastern_len_top_norm"] ** 2
     #feats["chest_depth_norm_elbow_sq"]    = feats["chest_depth_norm_elbow"] ** 2
@@ -322,6 +314,20 @@ def calculate_features(df):
     feats["hind_pastern_ang_sq"]          = feats["hind_pastern_ang"] ** 2
 
     feats.insert(loc=0, column='id', value=df['id'])
+
+        ##Clip outlier features(P01,P99 for now)
+    feat_cols = [c for c in feats.columns if c != "id"]
+
+    for c in feat_cols:
+        if c not in bounds.index:
+            continue  # no bounds for this feature
+
+        lo = float(bounds.loc[c, "p01"])
+        hi = float(bounds.loc[c, "p99"])
+
+        # cap
+        feats[c] = feats[c].where(feats[c] >= lo, lo)
+        feats[c] = feats[c].where(feats[c] <= hi, hi)
 
     return feats
 
