@@ -48,7 +48,8 @@ def run_pipeline_one(
     features_json=features_path,
     coeffs_json=MODELS_DIR / "model_coeffs.json",
     xb_range_json=MODELS_DIR / "xb_range.json",
-    )["score_0_100"]  
+    contrib_bounds_json=MODELS_DIR/"contribution_summary.json",
+    )["score_0_100"]  ,
 
     labeled_video = create_labeled_video(
         config_path=dlc_config,
@@ -62,4 +63,5 @@ def run_pipeline_one(
         "labeled_video": str(labeled_video),
         "Likelihood":lk_stats,
         "score": float(score),
+
     }

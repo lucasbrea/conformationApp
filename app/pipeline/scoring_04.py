@@ -18,6 +18,7 @@ def score_from_features(
     features_json: Path,
     coeffs_json: Path,
     xb_range_json: Path,
+    contrib_bounds_json: Path,
 ) -> dict:
     """
     Reads:
@@ -30,6 +31,8 @@ def score_from_features(
     feats = _load_json(Path(features_json))
     model = _load_json(Path(coeffs_json))
     rng = _load_json(Path(xb_range_json))
+    bounds_list = _load_json(Path(contrib_bounds_json))
+    contrib_bounds = {d["feature"]: (float(d["p01"]), float(d["p99"])) for d in bounds_list}
 
     intercept = float(model["intercept"])
     coeffs = model["coeffs"]
@@ -37,11 +40,26 @@ def score_from_features(
     # compute xb = intercept + sum(beta_j * x_j)
     xb = intercept
     missing = []
+    clipped = []   # track which terms got clipped
+
     for k, beta in coeffs.items():
         if k not in feats:
             missing.append(k)
             continue
-        xb += float(beta) * float(feats[k])
+
+        x = float(feats[k])
+        b = float(beta)
+        contrib = b * x
+
+        # If we have bounds for this term, clip the contribution
+        if k in contrib_bounds:
+            lo, hi = contrib_bounds[k]
+            contrib_clipped = min(max(contrib, lo), hi)
+            if contrib_clipped != contrib:
+                clipped.append({"feature": k, "contrib": contrib, "clipped_to": contrib_clipped})
+            contrib = contrib_clipped
+
+        xb += contrib
 
     if missing:
         raise KeyError(f"Missing features in features.json: {missing}")
@@ -78,4 +96,5 @@ def score_from_features(
         "prob_proxy_logit": -1 ,
         "xb_range": {"xb_lo": xb_lo, "xb_hi": xb_hi, "method": rng.get("method")},
         "model": model.get("name"),
+        "clipped_terms": clipped,
     }
