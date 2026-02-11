@@ -44,12 +44,15 @@ def run_pipeline_one(
     out_path=artifacts_dir / "features.json",
     )
 
-    score,clipped = score_from_features(
+    score_result = score_from_features(
     features_json=features_path,
     coeffs_json=MODELS_DIR / "model_coeffs.json",
     xb_range_json=MODELS_DIR / "xb_range.json",
     contrib_bounds_json=MODELS_DIR/"contribution_summary.json",
-    )["score_0_100","clipped_terms"] 
+    )
+
+    score = score_result["score_0_100"]
+    clipped = score_result.get("clipped_terms",[])
 
     labeled_video = create_labeled_video(
         config_path=dlc_config,
