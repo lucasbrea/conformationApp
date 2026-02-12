@@ -34,6 +34,7 @@ def score_from_features(
     bounds_list = _load_json(Path(contrib_bounds_json))
     contrib_bounds = {d["feature"]: (float(d["p01"]), float(d["p99"])) for d in bounds_list}
     contrib_med ={d["feature"]:(float(d["median"])) for d in bounds_list}
+    contrib_mean ={d["feature"]:(float(d["mean"])) for d in bounds_list}
     intercept = float(model["intercept"])
     coeffs = model["coeffs"]
 
@@ -55,9 +56,10 @@ def score_from_features(
         if k in contrib_bounds:
             lo, hi = contrib_bounds[k]
             med=contrib_med[k]
+            mean=contrib_mean[k]
             contrib_clipped=contrib
             if contrib<lo or contrib>hi:
-                contrib_clipped = med
+                contrib_clipped = mean
             if contrib_clipped != contrib:
                 clipped.append({"feature": k, "contrib": contrib, "clipped_to": contrib_clipped})
             contrib = contrib_clipped
