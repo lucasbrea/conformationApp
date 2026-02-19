@@ -11,7 +11,6 @@ def _load_json(path: Path) -> dict:
         return json.load(f)
 
 def _sigmoid(z: float) -> float:
-    # stable enough for your range; keep simple
     return 1.0 / (1.0 + math.exp(-z))
 
 def score_from_features(
