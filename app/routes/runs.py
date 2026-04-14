@@ -131,12 +131,12 @@ def list_runs(limit: int = 50, offset: int =0):
             "preview_url": preview_by_run.get(rid),
         })
 
-        return {
-        "runs": out,
-        "total": runs_res.count,
-        "limit": limit,
-        "offset": offset,
-    }
+    return {
+    "runs": out,
+    "total": runs_res.count,
+    "limit": limit,
+    "offset": offset,
+}
 
 
 @router.get("/runs/{run_id}")
