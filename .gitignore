@@ -16,7 +16,7 @@ dlc-models*/
 training-datasets/
 evaluation-results/
 models/
-worker
+worker/
 conda-spec.txt
 requirements.txt
 
