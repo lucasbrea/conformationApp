@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from redis import Redis
 from rq import Queue
+from rq.worker import Worker
 from app.routes.infer import router as infer_router
 from app.routes.runs import router as runs_router
 
@@ -24,8 +25,7 @@ app.add_middleware(
 def health():
     try:
         r = Redis.from_url("redis://redis:6379/0")
-        q = Queue("conformation", connection=r)
-        workers = q.workers
+        workers = Worker.all(connection=r)
         if not workers:
             return Response(status_code=503)
         return {"status": "ok", "workers": len(workers)}
