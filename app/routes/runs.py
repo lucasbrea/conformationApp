@@ -56,12 +56,12 @@ def get_run(run_id: str):
     }
 
 @router.get("/runs")
-def list_runs(limit: int = 50):
+def list_runs(limit: int = 50, offset: int =0):
     runs_res = (
         supabase.table("runs")
-        .select("id,status,created_at,horse_id,model_name,model_version")
+        .select("id,status,created_at,horse_id,model_name,model_version", count="exact")
         .order("created_at", desc=True)
-        .limit(limit)
+        .range(offset, offset + limit - 1)
         .execute()
     )
     runs = runs_res.data or []
@@ -131,7 +131,12 @@ def list_runs(limit: int = 50):
             "preview_url": preview_by_run.get(rid),
         })
 
-    return {"runs": out}
+        return {
+        "runs": out,
+        "total": runs_res.count,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/runs/{run_id}")
