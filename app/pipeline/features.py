@@ -297,6 +297,7 @@ def calculate_features(df):
 
     feats["head_area_ratio_sq"]           = feats["head_area_ratio"] ** 2
     feats["hind_pastern_ang_sq"]          = feats["hind_pastern_ang"] ** 2
+    feats["stifle_hip_buttock_ang"] = feats["stifle_hip_buttock_ang"]*-1
 
     feats.insert(loc=0, column='id', value=df['id'])
 
