@@ -32,7 +32,7 @@ async def infer(file: UploadFile = File(...)):
         "horse_id": horse_id,
         "status": "queued",
         "model_name": "dlc_conformation",
-        "model_version": "v1"
+        "model_version": "v2"
     }).execute()
     run_id = run.data[0]["id"]
 
