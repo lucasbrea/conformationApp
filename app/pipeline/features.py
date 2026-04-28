@@ -282,10 +282,8 @@ def calculate_features(df):
     feats = pd.DataFrame(
         {
             #Minimal Model Feats
-            "croup_vs_horiz":                angle("Withers","Croup_top","Buttock"),
-            "fore_pastern_len_top_norm":     dist_ratio("Fetlock_front","Hoof_upper_front","Withers","Croup_top"),
-            #"chest_depth_norm_elbow":        dist_ratio("Chest_top","Elbow_front","Chest_top","Buttock"),
-            "forearm_len_top_norm":          dist_ratio("Elbow_back","Knee_back","Withers","Croup_top"),
+            "hind_leg_ang":                  angle("Croup_top","Stiffle_front","Hock_back"),
+            "forearm_len_canon_norm":          dist_ratio("Elbow_back","Knee_back","Knee_front","Fetlock_front"),
             "head_area_ratio":             (
                                                 polygon_area("Nose","Chin", "Throat_latch_bottom","Throat_latch_top","Poll", "Forehead", "Forehead_eye") /
                                                 polygon_area("Neck_base_bottom", "Chest_top","Chest_botom", "Barrel_below_withers","Mid_belly","Stiffle_front","Buttock", "Dock", "Croup_top", "Back_bottom", "Withers", "Neck_base_top")
@@ -297,9 +295,6 @@ def calculate_features(df):
     )
 
 
-    feats["fore_pastern_len_top_norm_sq"] = feats["fore_pastern_len_top_norm"] ** 2
-    #feats["chest_depth_norm_elbow_sq"]    = feats["chest_depth_norm_elbow"] ** 2
-    feats["forearm_len_top_norm_sq"]      = feats["forearm_len_top_norm"] ** 2
     feats["head_area_ratio_sq"]           = feats["head_area_ratio"] ** 2
     feats["hind_pastern_ang_sq"]          = feats["hind_pastern_ang"] ** 2
 
@@ -339,7 +334,7 @@ USED_PARTS = sorted({
     "Nose","Chin","Throat_latch_bottom","Throat_latch_top","Poll","Forehead","Forehead_eye",
     "Neck_base_bottom","Chest_botom","Barrel_below_withers","Mid_belly","Stiffle_front",
     "Dock","Back_bottom","Neck_base_top",
-    "Hind_fetlock_front","Hind_hoof_upper_front",
+    "Hind_fetlock_front","Hind_hoof_upper_front","Hock_back","Knee_front",
 })
 
 def likelihood_stats(df_keypoints):

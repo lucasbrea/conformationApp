@@ -101,4 +101,5 @@ def score_from_features(
         "xb_range": {"xb_lo": xb_lo, "xb_hi": xb_hi, "method": rng.get("method")},
         "model": model.get("name"),
         "clipped_terms": clipped,
+        "model_version":"V2"
     }
