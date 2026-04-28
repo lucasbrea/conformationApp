@@ -41,7 +41,7 @@ async def infer(file: UploadFile = File(...)):
         str(input_path),
         str(job_dir),
         str(MODELS_DIR / "dlc_project" / "config_inference.yaml"),
-        str(MODELS_DIR / "model_coeffs.json"),
+        str(MODELS_DIR / "model_coeffs_V2.json"),
         horse_id=horse_id,
         run_id=run_id
     )
