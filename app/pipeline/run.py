@@ -66,6 +66,7 @@ def run_pipeline_one(
         "labeled_video": str(labeled_video),
         "Likelihood":lk_stats,
         "score": float(score),
-        "clipped":clipped
+        "clipped":clipped,
+        "model_version":"V2"
 
     }

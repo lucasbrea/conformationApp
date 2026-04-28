@@ -100,6 +100,5 @@ def score_from_features(
         "prob_proxy_logit": -1 ,
         "xb_range": {"xb_lo": xb_lo, "xb_hi": xb_hi, "method": rng.get("method")},
         "model": model.get("name"),
-        "clipped_terms": clipped,
-        "model_version":"V2"
+        "clipped_terms": clipped
     }
