@@ -46,9 +46,9 @@ def run_pipeline_one(
 
     score_result = score_from_features(
     features_json=features_path,
-    coeffs_json=MODELS_DIR / "model_coeffs V2.json",
-    xb_range_json=MODELS_DIR / "xb_range V2.json",
-    contrib_bounds_json=MODELS_DIR/"contribution_summary V2.json",
+    coeffs_json=MODELS_DIR / "model_coeffs_V2.json",
+    xb_range_json=MODELS_DIR / "xb_range_V2.json",
+    contrib_bounds_json=MODELS_DIR/"contribution_summary_V2.json",
     )
 
     score = score_result["score_0_100"]
