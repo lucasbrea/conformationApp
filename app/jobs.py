@@ -10,7 +10,7 @@ supabase = create_client(
 )
 
 BUCKET = "Conformation_Artifacts"
-BASELINE_PATH = Path("/models/xb_baseline.json")  # must exist in container
+BASELINE_PATH = Path("/models/xb_baseline_V2.json")  # must exist in container
 
 def _load_features(job_dir: str) -> dict | None:
     job_dir_p = Path(job_dir)
