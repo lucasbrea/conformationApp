@@ -1,72 +1,98 @@
 from fastapi import APIRouter, HTTPException
+from cachetools import TTLCache
 from app.supabase_client import supabase
 
 router = APIRouter()
 
 SIGNED_URL_TTL = 3600
+# Cache slightly under the URL TTL so we never hand out an expired URL.
+# maxsize is generous; tune to your traffic.
+_signed_url_cache: TTLCache = TTLCache(maxsize=10000, ttl=SIGNED_URL_TTL - 600)
 
-@router.get("/runs/{run_id}")
-def get_run(run_id: str):
-    run_res = (
-        supabase.table("runs")
-        .select("*")
-        .eq("id", run_id)
-        .single()
-        .execute()
-    )
-    if not run_res.data:
-        raise HTTPException(status_code=404, detail="Run not found")
-    
-    preds_res = (
-        supabase.table("predictions")
-        .select("metric,value,breakdown,created_at")
-        .eq("run_id", run_id)
-        .execute()
-    )
 
-    arts_res = (
-        supabase.table("artifacts")
-        .select("kind,bucket,path,size_bytes,sha256,created_at")
-        .eq("run_id", run_id)
-        .execute()
-    )
+def _sign_paths(bucket: str, paths: list[str]) -> dict[str, str | None]:
+    """
+    Return {path: signed_url} for the given bucket.
+    Uses an in-process cache and only calls Supabase for the cache misses,
+    in a single batch request.
+    """
+    result: dict[str, str | None] = {}
+    misses: list[str] = []
 
-    signed_artifacts = []
-    for a in (arts_res.data or []):
-        signed = supabase.storage.from_(a["bucket"]).create_signed_url(
-            a["path"],
-            SIGNED_URL_TTL
+    for p in paths:
+        cached = _signed_url_cache.get((bucket, p))
+        if cached is not None:
+            result[p] = cached
+        else:
+            misses.append(p)
+
+    if not misses:
+        return result
+
+    try:
+        signed_list = supabase.storage.from_(bucket).create_signed_urls(
+            misses, SIGNED_URL_TTL
         )
-        signed_artifacts.append({
-            **a,
-            "signed_url": signed.get("signedURL") if signed else None
-        })
+    except Exception:
+        # Fall back to None for everything we couldn't sign.
+        for p in misses:
+            result[p] = None
+        return result
 
-    score = None
-    for p in (preds_res.data or []):
-        if p["metric"] in ("cr_score", "score"):
-            score = p["value"]
-            break
+    # supabase-py returns a list of dicts aligned with the input paths.
+    # Key casing has varied across versions, so check both.
+    for entry in signed_list or []:
+        path = entry.get("path")
+        url = entry.get("signedURL") or entry.get("signedUrl")
+        if path is None:
+            continue
+        if url:
+            _signed_url_cache[(bucket, path)] = url
+        result[path] = url
 
-    return {
-        "run": run_res.data,
-        "score": score,
-        "predictions": preds_res.data or [],
-        "artifacts": signed_artifacts,
-    }
+    # Anything the API silently dropped → None
+    for p in misses:
+        result.setdefault(p, None)
+
+    return result
+
+
+def _sign_artifacts(artifacts: list[dict]) -> dict[tuple[str, str], str | None]:
+    """
+    Sign a mixed list of artifacts (each with bucket+path) in as few calls
+    as possible by grouping by bucket. Returns {(bucket, path): url}.
+    """
+    by_bucket: dict[str, list[str]] = {}
+    for a in artifacts:
+        b, p = a.get("bucket"), a.get("path")
+        if b and p:
+            by_bucket.setdefault(b, []).append(p)
+
+    out: dict[tuple[str, str], str | None] = {}
+    for bucket, paths in by_bucket.items():
+        # de-dupe within the bucket to avoid sending the same path twice
+        unique_paths = list(dict.fromkeys(paths))
+        signed = _sign_paths(bucket, unique_paths)
+        for p, url in signed.items():
+            out[(bucket, p)] = url
+    return out
+
 
 @router.get("/runs")
-def list_runs(limit: int = 50, offset: int =0):
+def list_runs(limit: int = 50, offset: int = 0):
     runs_res = (
         supabase.table("runs")
-        .select("id,status,created_at,horse_id,model_name,model_version", count="exact")
+        .select(
+            "id,status,created_at,horse_id,model_name,model_version",
+            count="exact",
+        )
         .order("created_at", desc=True)
         .range(offset, offset + limit - 1)
         .execute()
     )
     runs = runs_res.data or []
     if not runs:
-        return {"runs": []}
+        return {"runs": [], "total": runs_res.count, "limit": limit, "offset": offset}
 
     run_ids = [r["id"] for r in runs]
     status_by_run = {r["id"]: r["status"] for r in runs}
@@ -79,7 +105,7 @@ def list_runs(limit: int = 50, offset: int =0):
     )
     preds = preds_res.data or []
 
-    score_by_run = {}
+    score_by_run: dict[str, float] = {}
     for p in preds:
         rid = p["run_id"]
         m = p["metric"]
@@ -97,25 +123,25 @@ def list_runs(limit: int = 50, offset: int =0):
     )
     arts = arts_res.data or []
 
-    preview_by_run = {}
+    # Pick exactly one preview artifact per succeeded run (newest first,
+    # which is how arts is ordered already).
+    preview_choice: dict[str, dict] = {}
     for a in arts:
         rid = a["run_id"]
         if status_by_run.get(rid) != "succeeded":
             continue
-        if rid in preview_by_run:
+        if rid in preview_choice:
             continue
+        if a.get("bucket") and a.get("path"):
+            preview_choice[rid] = a
 
-        bucket = a.get("bucket")
-        path = a.get("path")
-        if not bucket or not path:
-            preview_by_run[rid] = None
-            continue
+    # Single batched signing pass for all chosen previews.
+    signed_map = _sign_artifacts(list(preview_choice.values()))
 
-        try:
-            signed = supabase.storage.from_(bucket).create_signed_url(path, SIGNED_URL_TTL)
-            preview_by_run[rid] = signed.get("signedURL") if signed else None
-        except Exception:
-            preview_by_run[rid] = None
+    preview_by_run: dict[str, str | None] = {
+        rid: signed_map.get((a["bucket"], a["path"]))
+        for rid, a in preview_choice.items()
+    }
 
     out = []
     for r in runs:
@@ -132,11 +158,11 @@ def list_runs(limit: int = 50, offset: int =0):
         })
 
     return {
-    "runs": out,
-    "total": runs_res.count,
-    "limit": limit,
-    "offset": offset,
-}
+        "runs": out,
+        "total": runs_res.count,
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 @router.get("/runs/{run_id}")
@@ -164,16 +190,14 @@ def get_run(run_id: str):
         .eq("run_id", run_id)
         .execute()
     )
+    arts = arts_res.data or []
 
-    signed_artifacts = []
-    for a in (arts_res.data or []):
-        try:
-            signed = supabase.storage.from_(a["bucket"]).create_signed_url(a["path"], SIGNED_URL_TTL)
-            signed_url = signed.get("signedURL") if signed else None
-        except Exception:
-            signed_url = None
-
-        signed_artifacts.append({**a, "signed_url": signed_url})
+    # Batch-sign every artifact for this run in one go (per bucket).
+    signed_map = _sign_artifacts(arts)
+    signed_artifacts = [
+        {**a, "signed_url": signed_map.get((a.get("bucket"), a.get("path")))}
+        for a in arts
+    ]
 
     score = None
     for p in (preds_res.data or []):
@@ -188,6 +212,7 @@ def get_run(run_id: str):
         "artifacts": signed_artifacts,
     }
 
+
 @router.delete("/runs/{run_id}")
 def delete_run(run_id: str):
     # 1) fetch artifacts first (so we can delete files)
@@ -199,9 +224,8 @@ def delete_run(run_id: str):
     )
     arts = arts_res.data or []
 
-    # 2) delete files from Storage (best effort)
-    # group by bucket because remove() is per-bucket
-    buckets = {}
+    # 2) delete files from Storage (best effort), grouped per bucket.
+    buckets: dict[str, list[str]] = {}
     for a in arts:
         b = a.get("bucket")
         p = a.get("path")
@@ -214,8 +238,11 @@ def delete_run(run_id: str):
         except Exception:
             # don't block deletion if a file is already gone
             pass
+        # invalidate any cached signed URLs for these paths
+        for p in paths:
+            _signed_url_cache.pop((bucket, p), None)
 
-    # 3) delete the run row (predictions/artifacts cascade if you set Step 1)
+    # 3) delete the run row (predictions/artifacts cascade if FKs are set up)
     del_res = supabase.table("runs").delete().eq("id", run_id).execute()
     if not del_res.data:
         raise HTTPException(status_code=404, detail="Run not found")
